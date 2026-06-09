@@ -1,0 +1,13 @@
+csrc/
+simv
+simv.daidir/
+simv.vdb/
+*.log
+*.vpd
+*.vcd
+*.fsdb
+*.key
+vc_hdrs.h
+.DS_Store
+Thumbs.db
+work/
