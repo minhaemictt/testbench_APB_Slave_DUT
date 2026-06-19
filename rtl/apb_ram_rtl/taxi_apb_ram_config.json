@@ -1,0 +1,48 @@
+{
+    "DESIGN_NAME": "taxi_apb_ram_flatport",
+    "VERILOG_FILES": [
+        "dir::taxi_apb_ram_flatport.sv",
+        "dir::bb_sram.v"
+    ],
+    
+    "CLOCK_PORT": "clk",
+    "CLOCK_PERIOD": 10.0,
+    
+    "FP_PDN_MULTILAYER": false,
+    "FP_SIZING": "relative",
+    "FP_CORE_UTIL": 50,
+    "PL_TARGET_DENSITY_PCT": 62,
+    
+    "MACROS": {
+        "sky130_sram_2kbyte_1rw1r_32x512_8": {
+            "gds": [
+                "/home/lroot/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_sram_macros/gds/sky130_sram_2kbyte_1rw1r_32x512_8.gds"
+            ],
+            "lef": [
+                "/home/lroot/.volare/volare/sky130/versions/0fe599b2afb6708d281543108caf8310912f54af/sky130A/libs.ref/sky130_sram_macros/lef/sky130_sram_2kbyte_1rw1r_32x512_8.lef"
+            ],
+            "nl": [
+                "dir::bb_sram.v"
+            ],
+            "instances": {
+                "sram_inst": {
+                    "location": [50.0, 50.0],
+                    "orientation": "N"
+                }
+            }
+        }
+    },
+    
+    "FP_PDN_MACRO_HOOKS": ["sram_inst vccd1 vssd1 vccd1 vssd1"],
+    
+    "EXTRA_LIBS": [
+        "dir::sram.lib"
+    ],
+    "MAX_TRANSITION_CONSTRAINT": 1.5,
+    "ERROR_ON_PDN_VIOLATIONS": false,
+    "MAGIC_CAPTURE_ERRORS": false,
+    "ERROR_ON_MAGIC_DRC": false,
+    "RUN_KLAYOUT_XOR": false,
+    "RUN_KLAYOUT_DRC": false,
+    "RUN_MAGIC_DRC": false
+}

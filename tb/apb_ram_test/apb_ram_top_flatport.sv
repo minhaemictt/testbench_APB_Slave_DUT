@@ -1,16 +1,14 @@
-`timescale 1ns/1ns
+`timescale 1ns/1ps
 `include "uvm_macros.svh"
 `include "apb_slave_uvm_interface.sv"
 `include "apb_slave_uvm_package.sv"  
 `include "apb_ram_package.sv"
 
-
-module tb_top;
+module apb_ram_top_flatport;
 
     import uvm_pkg::*;
     import apb_slave_uvm_package::*;
     import apb_ram_package::*;
-
 
     logic clk;
     
@@ -29,8 +27,6 @@ module tb_top;
         #5 clk = ~clk;
     end
     
-    // Flatport DUT — no intermediate interface or modport needed,
-    // UVM interface signals connect directly to the flat ports.
     taxi_apb_ram_flatport dut(
         .clk              (clk),
         .rst              (apb_if.prst),
@@ -52,13 +48,16 @@ module tb_top;
     );
 
     initial begin
-        $dumpfile("apb_slave_uvm_top.vcd");
-        $dumpvars(0, tb_top);                 
+        //waveform
+        $dumpfile("apb_ram_top_flatport.vcd");
+        $dumpvars(0, apb_ram_top_flatport);      
+
+        //sdf
+        $sdf_annotate("delays.sdf", apb_ram_top_flatport.dut);           
     end
 
     initial begin
         uvm_config_db #(virtual apb_slave_uvm_interface)::set(null, "uvm_test_top.*", "vif", apb_if);
-        // to run the ram test, we must override the slave_uvm_test instead of leaving it like this run_test("apb_slave_uvm_test");
         run_test("apb_ram_test");
     end
 

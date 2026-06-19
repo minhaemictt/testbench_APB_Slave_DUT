@@ -5,17 +5,15 @@ class apb_ram_scoreboard extends apb_slave_uvm_scoreboard;
         super.new(name, parent);
     endfunction
     virtual function void checker_sco(apb_slave_uvm_transaction tr);
-        //adding return here helps the scoreboard to not check out of address data as it is only to check for the function of pslverr
         if (tr.paddr >= 65536) begin
             if (tr.pslverr !== 1'b1) begin
                 `uvm_error("PSLVERR", "should be 1")
             end
-            return;
         end
         else 
         begin
             if (tr.pslverr !== 1'b0) begin
-                `uvm_error("PSLVERR", "should be 0");
+                `uvm_error("PSLVERR", "should be 0")
             end
         end
 
@@ -27,6 +25,8 @@ class apb_ram_scoreboard extends apb_slave_uvm_scoreboard;
         end
 
         //in most case, we should declare all the checking before declare the original function
-        super.checker_sco(tr);
+        if(tr.paddr < 65536) begin
+            super.checker_sco(tr);
+        end
     endfunction
 endclass

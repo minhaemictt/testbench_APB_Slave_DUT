@@ -1,3 +1,5 @@
+`include "uvm_macros.svh"
+import uvm_pkg::*;
 `timescale 1ns/1ns
 `include "uvm_macros.svh"
 `include "apb_slave_uvm_interface.sv"

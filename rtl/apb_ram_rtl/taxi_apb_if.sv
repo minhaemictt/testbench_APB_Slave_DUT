@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: CERN-OHL-S-2.0
 /*
 
 Copyright (c) 2025 FPGA Ninja, LLC
@@ -8,78 +8,112 @@ Authors:
 
 */
 
-interface taxi_apb_if #(
+`resetall
+`timescale 1ns / 1ps
+`default_nettype none
+
+/*
+ * APB RAM
+ */
+module taxi_apb_ram #
+(
     // Width of data bus in bits
     parameter DATA_W = 32,
     // Width of address bus in bits
-    parameter ADDR_W = 32,
-    // Width of pstrb (width of data bus in words)
-    parameter STRB_W = (DATA_W/8),
-    // Use pauser signal
-    parameter logic PAUSER_EN = 1'b0,
-    // Width of pauser signal
-    parameter PAUSER_W = 1,
-    // Use pwuser signal
-    parameter logic PWUSER_EN = 1'b0,
-    // Width of pwuser signal
-    parameter PWUSER_W = 1,
-    // Use pruser signal
-    parameter logic PRUSER_EN = 1'b0,
-    // Width of pruser signal
-    parameter PRUSER_W = 1,
-    // Use pbuser signal
-    parameter logic PBUSER_EN = 1'b0,
-    // Width of pbuser signal
-    parameter PBUSER_W = 1
+    parameter ADDR_W = 16,
+    // Extra pipeline register on output
+    parameter logic PIPELINE_OUTPUT = 1'b0
 )
-();
-    logic [ADDR_W-1:0]    paddr;
-    logic [2:0]           pprot;
-    logic                 psel;
-    logic                 penable;
-    logic                 pwrite;
-    logic [DATA_W-1:0]    pwdata;
-    logic [STRB_W-1:0]    pstrb;
-    logic                 pready;
-    logic [DATA_W-1:0]    prdata;
-    logic                 pslverr;
-    logic [PAUSER_W-1:0]  pauser;
-    logic [PWUSER_W-1:0]  pwuser;
-    logic [PRUSER_W-1:0]  pruser;
-    logic [PBUSER_W-1:0]  pbuser;
+(
+    input  wire logic  clk,
+    input  wire logic  rst,
 
-    modport mst (
-        output paddr,
-        output pprot,
-        output psel,
-        output penable,
-        output pwrite,
-        output pwdata,
-        output pstrb,
-        input  pready,
-        input  prdata,
-        input  pslverr,
-        output pauser,
-        output pwuser,
-        input  pruser,
-        input  pbuser
-    );
+    /*
+     * APB slave interface
+     */
+    input  wire logic [ADDR_W-1:0]        paddr,
+    input  wire logic [2:0]               pprot,
+    input  wire logic                     psel,
+    input  wire logic                     penable,
+    input  wire logic                     pwrite,
+    input  wire logic [DATA_W-1:0]        pwdata,
+    input  wire logic [(DATA_W/8)-1:0]    pstrb,
+    output wire logic                     pready,
+    output wire logic [DATA_W-1:0]        prdata,
+    output wire logic                     pslverr,
+    output wire logic                     pruser,
+    output wire logic                     pbuser
+);
 
-    modport slv (
-        input  paddr,
-        input  pprot,
-        input  psel,
-        input  penable,
-        input  pwrite,
-        input  pwdata,
-        input  pstrb,
-        output pready,
-        output prdata,
-        output pslverr,
-        input  pauser,
-        input  pwuser,
-        output pruser,
-        output pbuser
-    );
+localparam STRB_W = DATA_W/8;
+localparam VALID_ADDR_W = ADDR_W - $clog2(STRB_W);
+localparam BYTE_LANES = STRB_W;
+localparam BYTE_W = DATA_W/BYTE_LANES;
 
-endinterface
+// check configuration
+if (BYTE_W * STRB_W != DATA_W)
+    $fatal(0, "Error: APB data width not evenly divisible (instance %m)");
+
+if (2**$clog2(BYTE_LANES) != BYTE_LANES)
+    $fatal(0, "Error: APB byte lane count must be even power of two (instance %m)");
+
+logic mem_wr_en;
+logic mem_rd_en;
+
+logic s_apb_pready_reg = 1'b0, s_apb_pready_next;
+logic s_apb_pready_pipe_reg = 1'b0;
+logic [DATA_W-1:0] s_apb_prdata_reg = '0, s_apb_prdata_next;
+logic [DATA_W-1:0] s_apb_prdata_pipe_reg = '0;
+
+// (* RAM_STYLE="BLOCK" *)
+logic [DATA_W-1:0] mem[2**VALID_ADDR_W] = '{default: '0};
+
+wire [VALID_ADDR_W-1:0] s_apb_paddr_valid = paddr[ADDR_W-1 -: VALID_ADDR_W];
+
+assign prdata  = PIPELINE_OUTPUT ? s_apb_prdata_pipe_reg : s_apb_prdata_reg;
+assign pready  = PIPELINE_OUTPUT ? s_apb_pready_pipe_reg : s_apb_pready_reg;
+assign pslverr = 1'b0;
+assign pruser  = 1'b0;
+assign pbuser  = 1'b0;
+
+always_comb begin
+    mem_wr_en = 1'b0;
+    mem_rd_en = 1'b0;
+
+    s_apb_pready_next = 1'b0;
+
+    if (psel && (!s_apb_pready_reg && (PIPELINE_OUTPUT || !s_apb_pready_pipe_reg))) begin
+        s_apb_pready_next = 1'b1;
+
+        if (pwrite) begin
+            mem_wr_en = 1'b1;
+        end else begin
+            mem_rd_en = 1'b1;
+        end
+    end
+end
+
+always_ff @(posedge clk) begin
+    s_apb_pready_reg <= s_apb_pready_next;
+
+    for (integer i = 0; i < BYTE_LANES; i = i + 1) begin
+        if (mem_wr_en && pstrb[i]) begin
+            mem[s_apb_paddr_valid][BYTE_W*i +: BYTE_W] <= pwdata[BYTE_W*i +: BYTE_W];
+        end
+    end
+
+    if (mem_rd_en) begin
+        s_apb_prdata_reg <= mem[s_apb_paddr_valid];
+    end
+
+    s_apb_prdata_pipe_reg <= s_apb_prdata_reg;
+    s_apb_pready_pipe_reg <= s_apb_pready_reg;
+
+    if (rst) begin
+        s_apb_pready_reg <= 1'b0;
+    end
+end
+
+endmodule
+
+`resetall

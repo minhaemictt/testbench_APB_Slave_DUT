@@ -3,8 +3,8 @@ class apb_ram_monitor extends apb_slave_uvm_monitor;
 
     covergroup apb_ram_cg;
         paddr_cg: coverpoint tr.paddr {
-            bins paddr_valid            = {[0:65534]};        
-            bins paddr_boundary_valid   = {65535};             
+            bins paddr_valid            = {[0:65531]};        
+            bins paddr_boundary_valid   = {65532};             
             bins paddr_boundary_invalid = {65536};             
             bins paddr_invalid          = {[65537:32'hFFFFFFFF]};
         }
